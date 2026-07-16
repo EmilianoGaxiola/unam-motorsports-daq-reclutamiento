@@ -1,0 +1,13 @@
+# Entornos y cachés de Python
+.venv/
+__pycache__/
+*.pyc
+
+# Configuración local de Claude Code (no es parte del entregable)
+.claude/
+
+# Secretos -- NUNCA subir credenciales reales de WiFi
+wifi_credentials.h
+
+# Sistema
+.DS_Store
