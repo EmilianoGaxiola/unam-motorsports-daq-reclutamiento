@@ -3,7 +3,7 @@
 __pycache__/
 *.pyc
 
-# Configuración local de Claude Code (no es parte del entregable)
+# Configuración local del entorno de desarrollo (no es parte del entregable)
 .claude/
 
 # Secretos -- NUNCA subir credenciales reales de WiFi
