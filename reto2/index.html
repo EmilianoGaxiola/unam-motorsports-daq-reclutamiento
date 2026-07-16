@@ -174,13 +174,12 @@
       </div>
 
       <div class="panel">
-        <h3>Criterios de detección (provisionales)</h3>
+        <h3>Criterios de detección</h3>
         <p class="note">
           <b>Plausibilidad:</b> <code>freno&gt;50% &amp; acelerador&gt;50%</code> sostenido &gt;100&nbsp;ms.
           &nbsp;·&nbsp; <b>Saturación:</b> <code>|accel|&gt;0.98 g</code> sostenido &gt;100&nbsp;ms.
-          &nbsp;·&nbsp; <b>Pérdida de señal:</b> varianza colapsada en ventana móvil.
-          Los umbrales están pendientes de confirmar en la sesión del 14 de julio
-          (ver <code>docs/PREGUNTAS_MANANA.md</code>); cámbialos en un solo lugar del código.
+          &nbsp;·&nbsp; <b>Pérdida de señal:</b> varianza colapsada en ventana móvil, por eje independiente.
+          Umbrales documentados como constantes en <code>pipeline.py</code>, ajustables en un solo lugar.
         </p>
       </div>
     </div>
