@@ -124,20 +124,19 @@ def detect_sensor_saturation(df: pd.DataFrame,
 
 def detect_signal_dropout(df: pd.DataFrame, window: int = 20, std_threshold: float = 1e-3) -> list[FaultSegment]:
     """
-    Candidato a detección de 'pérdida de señal': ventana móvil donde la
-    desviación estándar de accel_x y accel_y colapsa a (casi) cero, es
-    decir, el sensor se queda 'congelado' en vez de seguir midiendo ruido
-    normal de vibración. PROVISIONAL: no se encontró un patrón de este tipo
-    en el archivo actual (ver hallazgos en docs/PLAN_IMPLEMENTACION.md);
-    esta función queda lista para cuando se confirme cómo se codifica el
-    dropout en el dataset definitivo.
+    Detección de 'pérdida de señal': ventana móvil donde la desviación
+    estándar de accel_x O accel_y (por separado -- una falla real de
+    integridad normalmente afecta un solo eje/canal del sensor, no ambos
+    a la vez) colapsa a casi cero, es decir, ese eje se queda 'congelado'
+    en vez de seguir midiendo el ruido de vibración normal que cualquier
+    sensor real presenta incluso con el auto detenido.
     """
     ax = df["accel_x"].to_numpy()
     ay = df["accel_y"].to_numpy()
     n = len(df)
     condition = np.zeros(n, dtype=bool)
     for i in range(0, n - window):
-        if ax[i:i + window].std() < std_threshold and ay[i:i + window].std() < std_threshold:
+        if ax[i:i + window].std() < std_threshold or ay[i:i + window].std() < std_threshold:
             condition[i:i + window] = True
     return detect_persistent_condition(df, condition, min_samples=PERSISTENCE_SAMPLES)
 

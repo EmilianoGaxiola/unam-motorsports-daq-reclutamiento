@@ -274,7 +274,7 @@
     for(let i=0;i<raw.n-w;i++){
       let mx=0,my=0; for(let j=0;j<w;j++){mx+=raw.ax[i+j];my+=raw.ay[i+j];} mx/=w;my/=w;
       let vx=0,vy=0; for(let j=0;j<w;j++){vx+=(raw.ax[i+j]-mx)**2;vy+=(raw.ay[i+j]-my)**2;}
-      if(Math.sqrt(vx/w)<1e-3 && Math.sqrt(vy/w)<1e-3){ for(let j=0;j<w;j++) dropCond[i+j]=1; }
+      if(Math.sqrt(vx/w)<1e-3 || Math.sqrt(vy/w)<1e-3){ for(let j=0;j<w;j++) dropCond[i+j]=1; }
     }
     const plaus=persistentSegments(plausCond,PERSIST_SAMPLES);
     const sat=persistentSegments(satCond,PERSIST_SAMPLES);
