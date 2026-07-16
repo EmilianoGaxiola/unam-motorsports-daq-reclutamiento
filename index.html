@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UNAM Motorsports — DAQ</title>
+<style>
+  :root{
+    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#222220;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --lime:#c6f000; --lime-dim:#9bbd00;
+    --border:rgba(255,255,255,.10);
+    --good:#0ca30c; --critical:#d03b3b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(198,240,0,.08), transparent 60%),
+      var(--plane);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    min-height:100%;
+    display:flex; flex-direction:column;
+  }
+  header{padding:40px 24px 8px; text-align:center}
+  .kicker{
+    letter-spacing:.28em; text-transform:uppercase; font-size:12px;
+    color:var(--lime); font-weight:700; margin-bottom:14px;
+  }
+  h1{
+    margin:0; font-size:clamp(30px,6vw,56px); line-height:1.02;
+    font-weight:800; letter-spacing:-.02em;
+  }
+  h1 .thin{color:var(--ink-2); font-weight:400}
+  .sub{color:var(--muted); margin:16px auto 0; max-width:620px; font-size:15px; line-height:1.5}
+  main{
+    flex:1; display:grid; gap:22px; padding:40px 24px 24px;
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    max-width:900px; width:100%; margin:0 auto; align-content:center;
+  }
+  .card{
+    display:flex; flex-direction:column; text-decoration:none; color:inherit;
+    background:linear-gradient(180deg,var(--surface-2),var(--surface));
+    border:1px solid var(--border); border-radius:18px; padding:28px;
+    position:relative; overflow:hidden;
+    transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .card:hover{transform:translateY(-4px); border-color:rgba(198,240,0,.5);
+    box-shadow:0 18px 50px -20px rgba(198,240,0,.35)}
+  .card .num{
+    font-size:13px; font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--lime-dim);
+  }
+  .card h2{margin:10px 0 6px; font-size:24px; letter-spacing:-.01em}
+  .card p{margin:0 0 22px; color:var(--ink-2); font-size:14px; line-height:1.55; flex:1}
+  .chips{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:22px}
+  .chip{
+    font-size:11px; color:var(--muted); border:1px solid var(--border);
+    padding:4px 10px; border-radius:999px;
+  }
+  .go{
+    display:inline-flex; align-items:center; gap:10px; align-self:flex-start;
+    background:var(--lime); color:#0d0d0d; font-weight:700; font-size:14px;
+    padding:11px 20px; border-radius:10px;
+  }
+  .go svg{width:16px;height:16px}
+  .card::after{
+    content:""; position:absolute; right:-40px; top:-40px; width:160px; height:160px;
+    background:radial-gradient(circle, rgba(198,240,0,.14), transparent 70%);
+  }
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:20px}
+  footer b{color:var(--ink-2); font-weight:600}
+</style>
+</head>
+<body>
+  <header>
+    <div class="kicker">UNAM Motorsports · Data Acquisition</div>
+    <h1>Reclutamiento <span class="thin">DAQ</span></h1>
+    <p class="sub">Dos retos de ingeniería de adquisición de datos para Fórmula SAE.
+      Elige un reto para abrir su panel interactivo.</p>
+  </header>
+
+  <main>
+    <a class="card" href="./reto1/">
+      <div class="num">Reto 01</div>
+      <h2>Validación de Plausibilidad APPS</h2>
+      <p>Panel en tiempo real del pedal de aceleración con doble sensor redundante.
+         Monitorea ambos canales, detecta asimetrías y dispara el corte de motor
+         con la regla de persistencia de 100&nbsp;ms.</p>
+      <div class="chips">
+        <span class="chip">ESP32</span><span class="chip">Web Serial</span>
+        <span class="chip">Tiempo real</span><span class="chip">Modo demo</span>
+      </div>
+      <span class="go">Abrir panel
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </span>
+    </a>
+
+    <a class="card" href="./reto2/">
+      <div class="num">Reto 02</div>
+      <h2>Telemetría y Detección de Anomalías</h2>
+      <p>Reproductor de telemetría a 100&nbsp;Hz. Recorre el registro en el tiempo,
+         visualiza cada canal, dibuja el diagrama G-G y resalta las anomalías
+         detectadas con un indicador crítico de plausibilidad.</p>
+      <div class="chips">
+        <span class="chip">CSV</span><span class="chip">Diagrama G-G</span>
+        <span class="chip">Filtro fase cero</span><span class="chip">Playback</span>
+      </div>
+      <span class="go">Abrir panel
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </span>
+    </a>
+  </main>
+
+  <footer>Proyecto de reclutamiento · <b>13–17 julio 2026</b> · Fórmula SAE</footer>
+</body>
+</html>

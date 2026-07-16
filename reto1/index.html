@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reto 1 · Validación APPS — UNAM Motorsports DAQ</title>
+<style>
+  :root{
+    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#222220;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --lime:#c6f000; --lime-dim:#9bbd00;
+    --border:rgba(255,255,255,.10);
+    --grid:#2c2c2a; --axis:#383835;
+    --ch1:#3987e5;   /* APPS1 - azul */
+    --ch2:#9085e9;   /* APPS2 - violeta (como en la diapositiva de UNAM Motorsports) */
+    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--plane); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    min-height:100vh;
+  }
+  a{color:var(--lime)}
+  .topbar{
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    padding:16px 22px; border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,var(--surface-2),var(--surface));
+    position:sticky; top:0; z-index:5;
+  }
+  .back{font-size:13px; text-decoration:none; color:var(--muted); display:flex; gap:6px; align-items:center}
+  .back:hover{color:var(--ink-2)}
+  .title{font-weight:800; letter-spacing:-.01em; font-size:17px}
+  .title small{display:block; font-weight:500; color:var(--muted); letter-spacing:.16em; text-transform:uppercase; font-size:10px}
+  .spacer{flex:1}
+  button.act{
+    font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;
+    border-radius:9px; padding:9px 16px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--ink); transition:.15s;
+  }
+  button.act:hover{border-color:rgba(198,240,0,.5)}
+  button.primary{background:var(--lime); color:#0d0d0d; border-color:var(--lime)}
+  button.primary:hover{filter:brightness(1.05)}
+  button:disabled{opacity:.4; cursor:not-allowed}
+  .conn{font-size:12px; color:var(--muted); display:flex; align-items:center; gap:7px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+  .dot.on{background:var(--good); box-shadow:0 0 10px var(--good)}
+  .dot.wifi{background:var(--ch1); box-shadow:0 0 10px var(--ch1)}
+  .dot.demo{background:var(--warning); box-shadow:0 0 10px var(--warning)}
+
+  main{max-width:1180px; margin:0 auto; padding:22px; display:grid; gap:18px}
+  .status-banner{
+    border-radius:16px; padding:22px 26px; display:flex; align-items:center; gap:20px;
+    border:1px solid var(--border); transition:.2s;
+  }
+  .status-banner.ok{background:linear-gradient(180deg,rgba(12,163,12,.14),rgba(12,163,12,.04)); border-color:rgba(12,163,12,.4)}
+  .status-banner.fault{background:linear-gradient(180deg,rgba(208,59,59,.18),rgba(208,59,59,.05)); border-color:rgba(208,59,59,.55)}
+  .status-icon{width:54px;height:54px;border-radius:50%; display:grid; place-items:center; flex:none}
+  .status-banner.ok .status-icon{background:rgba(12,163,12,.2)}
+  .status-banner.fault .status-icon{background:rgba(208,59,59,.25); animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+  .status-icon svg{width:30px;height:30px}
+  .status-text .big{font-size:26px; font-weight:800; letter-spacing:-.01em}
+  .status-text .small{color:var(--ink-2); font-size:14px; margin-top:3px}
+  .fault-timer{margin-left:auto; text-align:right}
+  .fault-timer .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.14em}
+  .fault-timer .val{font-size:30px; font-weight:800; font-variant-numeric:tabular-nums}
+
+  .grid{display:grid; gap:18px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .panel{
+    background:linear-gradient(180deg,var(--surface-2),var(--surface));
+    border:1px solid var(--border); border-radius:16px; padding:18px 20px;
+  }
+  .panel h3{margin:0 0 14px; font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700}
+  .chan{display:flex; align-items:baseline; gap:10px; margin-bottom:8px}
+  .chan .name{font-weight:700; font-size:15px}
+  .chan .pct{margin-left:auto; font-size:24px; font-weight:800; font-variant-numeric:tabular-nums}
+  .chan .raw{font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums}
+  .bar{height:14px; border-radius:8px; background:#111; overflow:hidden; border:1px solid var(--border)}
+  .bar > i{display:block; height:100%; border-radius:8px; transition:width .06s linear}
+  .legend{display:flex; gap:18px; margin-top:6px; font-size:12px; color:var(--ink-2)}
+  .legend span{display:flex; align-items:center; gap:7px}
+  .swatch{width:12px;height:12px;border-radius:3px}
+  canvas{width:100%; display:block}
+  .metrics{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .metric{background:#141413; border:1px solid var(--border); border-radius:12px; padding:14px}
+  .metric .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em}
+  .metric .v{font-size:22px; font-weight:800; margin-top:4px; font-variant-numeric:tabular-nums}
+  .note{font-size:12px; color:var(--muted); line-height:1.6}
+  .note code{background:#141413; padding:2px 6px; border-radius:5px; color:var(--ink-2); font-size:11px}
+  .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+  .toggle{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ink-2)}
+  .ovr-btn{
+    font-family:inherit; font-weight:700; font-size:12px; cursor:pointer;
+    border-radius:8px; padding:8px 12px; border:1px solid var(--border);
+    background:#141413; color:var(--ink-2); transition:.15s; display:inline-flex;
+    align-items:center; gap:7px;
+  }
+  .ovr-btn:hover{border-color:rgba(208,59,59,.5); color:var(--ink)}
+  .ovr-btn .dot{width:8px;height:8px;border-radius:50%;background:var(--muted); box-shadow:none}
+  .ovr-btn.active{background:rgba(208,59,59,.18); border-color:rgba(208,59,59,.6); color:#fff}
+  .ovr-btn.active .dot{background:var(--critical); box-shadow:0 0 8px var(--critical)}
+  .ovr-hint{font-size:11px; color:var(--muted); margin-top:8px; line-height:1.5}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../">◄ Inicio</a>
+    <div class="title">Validación de Plausibilidad APPS<small>Reto 01 · Fórmula SAE T.4.2</small></div>
+    <div class="spacer"></div>
+    <div class="conn"><span id="connDot" class="dot"></span><span id="connLabel">Sin conexión</span></div>
+    <button id="btnConnect" class="act primary">Conectar ESP32 (USB)</button>
+    <button id="btnWifi" class="act primary">Conectar WiFi</button>
+    <button id="btnDemo" class="act">Modo demo</button>
+  </div>
+
+  <main>
+    <div id="banner" class="status-banner ok">
+      <div class="status-icon" id="statusIcon"></div>
+      <div class="status-text">
+        <div class="big" id="statusBig">SISTEMA OK</div>
+        <div class="small" id="statusSmall">Ambos canales coherentes · motor habilitado</div>
+      </div>
+      <div class="fault-timer">
+        <div class="lbl">Persistencia de falla</div>
+        <div class="val"><span id="faultMs">0</span> <span style="font-size:15px;color:var(--muted)">/ 100 ms</span></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h3>Canales APPS (escala común 0–100 %)</h3>
+        <div class="chan">
+          <span class="swatch" style="background:var(--ch1)"></span>
+          <span class="name">APPS 1</span>
+          <span class="raw" id="raw1">raw 0</span>
+          <span class="pct" id="pct1" style="color:var(--ch1)">0.0%</span>
+        </div>
+        <div class="bar"><i id="bar1" style="width:0%;background:var(--ch1)"></i></div>
+        <button id="btnOvr1" class="ovr-btn" style="margin-top:8px">
+          <span class="dot"></span> Forzar falla APPS 1
+        </button>
+        <div style="height:18px"></div>
+        <div class="chan">
+          <span class="swatch" style="background:var(--ch2)"></span>
+          <span class="name">APPS 2</span>
+          <span class="raw" id="raw2">raw 0</span>
+          <span class="pct" id="pct2" style="color:var(--ch2)">0.0%</span>
+        </div>
+        <div class="bar"><i id="bar2" style="width:0%;background:var(--ch2)"></i></div>
+        <button id="btnOvr2" class="ovr-btn" style="margin-top:8px">
+          <span class="dot"></span> Forzar falla APPS 2
+        </button>
+        <div class="ovr-hint">Simula un corto/cable roto en ese canal (lo fuerza a 0%). Mismo
+          efecto que presionar el botón físico correspondiente en el circuito — cualquiera de
+          los dos, el ESP32 decide igual.</div>
+      </div>
+
+      <div class="panel">
+        <h3>Diagnóstico de plausibilidad</h3>
+        <div class="metrics">
+          <div class="metric"><div class="lbl">Δ Desacuerdo</div><div class="v" id="mDelta">0.0%</div></div>
+          <div class="metric"><div class="lbl">Umbral</div><div class="v">10.0%</div></div>
+          <div class="metric"><div class="lbl">Muestreo</div><div class="v" id="mRate">— Hz</div></div>
+        </div>
+        <div style="height:14px"></div>
+        <p class="note">Falla declarada cuando <code>|APPS1 − APPS2| &gt; 10%</code> de forma
+          continua por más de <code>100 ms</code>. La decisión de corte vive en el ESP32; este
+          panel solo observa la telemetría que llega por Serial.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Señales en tiempo real — escala común (últimos 10 s)</h3>
+      <canvas id="chart" height="260"></canvas>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--ch1)"></span>APPS 1 (%)</span>
+        <span><span class="swatch" style="background:var(--ch2)"></span>APPS 2 (%)</span>
+        <span><span class="swatch" style="background:var(--critical)"></span>Ventana de falla</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Asimetría eléctrica — voltaje real por canal (últimos 10 s)</h3>
+      <canvas id="voltChart" height="260"></canvas>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--ch1)"></span>APPS 1 (V) · alimentado a 5V, rango 0–2.94V</span>
+        <span><span class="swatch" style="background:var(--ch2)"></span>APPS 2 (V) · alimentado a 3.3V, rango 0–3.3V</span>
+      </div>
+      <p class="note" style="margin-top:10px">Cada canal se alimenta de un riel distinto (5V y
+        3.3V) — asimetría eléctrica real, no solo de software. APPS1 necesita un divisor de
+        voltaje antes del ADC; APPS2 va directo, su propio riel ya es seguro. Las bandas
+        sombreadas marcan el rango esperado de cada uno. Se normalizan a la escala común de
+        0–100% (gráfica de arriba) antes de compararlos.</p>
+    </div>
+
+    <div class="panel">
+      <h3>Protocolo esperado por Serial</h3>
+      <p class="note">El firmware del ESP32 debe emitir una línea JSON por muestra a
+        <code>115200</code> baud, terminada en salto de línea:</p>
+      <p class="note" style="margin-top:8px"><code>{"t":12345,"apps1_raw":512,"apps2_raw":3021,"apps1_pct":24.6,"apps2_pct":73.8,"fault":false,"fault_ms":0,"override1":false,"override2":false}</code></p>
+      <p class="note" style="margin-top:10px">Este panel también puede <b>enviar</b> comandos de
+        vuelta al ESP32 (botones "Forzar falla" de arriba), texto plano terminado en salto de
+        línea: <code>OVR1:1</code> / <code>OVR1:0</code> / <code>OVR2:1</code> / <code>OVR2:0</code>.
+        El ESP32 los trata exactamente igual que presionar el botón físico correspondiente —
+        la lógica de seguridad (comparación + persistencia de 100ms) sigue viviendo entera en
+        el microcontrolador, esto solo es otra forma de disparar la misma prueba.</p>
+      <p class="note" style="margin-top:10px"><b>Compatibilidad:</b> Web Serial (lectura y
+        escritura) funciona en Chrome/Edge de escritorio. Si tu navegador no lo soporta, usa
+        <b>Modo demo</b> para ver el panel con datos simulados — ahí los botones "Forzar falla"
+        también funcionan, sin necesidad de hardware conectado.</p>
+      <p class="note" style="margin-top:10px"><b>Conexión por WiFi (sin cable):</b> el ESP32
+        también puede correr un servidor WebSocket en el puerto <code>81</code> y anunciarse como
+        <code>esp32-apps.local</code>. Dale clic a "Conectar WiFi" y pon la dirección
+        <code>ws://esp32-apps.local:81</code> (o la IP que muestre el Monitor Serial si el nombre
+        <code>.local</code> no resuelve). Tu laptop debe estar en la misma red WiFi que el ESP32.</p>
+      <p class="note" style="margin-top:10px"><b>⚠ Importante sobre WiFi:</b> esta página se sirve
+        por HTTPS, y algunos navegadores bloquean por seguridad que una página HTTPS abra una
+        conexión <code>ws://</code> (sin cifrar) hacia la red local — es una protección del
+        navegador, no un error del ESP32. Si "Conectar WiFi" no funciona aquí, descarga este mismo
+        archivo (<code>reto1/index.html</code>) y ábrelo directo en el navegador desde tu
+        computadora (doble clic, sin `https://`) — ahí sí se permite `ws://` sin restricción.</p>
+    </div>
+  </main>
+
+<script>
+(() => {
+  "use strict";
+  const THRESHOLD = 10;      // % de desacuerdo
+  const PERSIST_MS = 100;
+  const WINDOW_S = 10;
+  const VREF = 3.3;          // referencia del ADC del ESP32
+  // APPS1 se alimenta a 5V (necesita divisor antes del ADC); APPS2 se alimenta directo
+  // a 3.3V (sin divisor, es su propio límite natural) — dos rieles = asimetría real.
+  const CH1_VMIN = 0.0,  CH1_VMAX = 2.94;   // divisor APPS1: R1=3.3k, R2=4.7k
+  const CH2_VMIN = 0.0,  CH2_VMAX = 3.3;    // APPS2 directo, sin divisor
+
+  // ---- estado ----
+  const state = {
+    hist: [],              // {t, p1, p2, fault}
+    lastT: null, rate: 0, rateEma: 0,
+    faultStart: null, faultConfirmed: false,
+    source: null,          // 'serial' | 'demo' | null
+    override1: false, override2: false,   // último estado conocido (reportado por el ESP32 o local en demo)
+  };
+
+  const $ = id => document.getElementById(id);
+  const banner = $('banner'), statusIcon = $('statusIcon');
+
+  const ICON_OK = '<svg viewBox="0 0 24 24" fill="none" stroke="#0ca30c" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>';
+  const ICON_FAULT = '<svg viewBox="0 0 24 24" fill="none" stroke="#d03b3b" stroke-width="3"><path d="M12 8v5M12 17h.01"/><path d="M10.3 3.3 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0Z"/></svg>';
+
+  function setConn(kind){
+    const dot = $('connDot'), lbl = $('connLabel');
+    dot.className = 'dot' + (kind==='serial'?' on':kind==='wifi'?' wifi':kind==='demo'?' demo':'');
+    lbl.textContent = kind==='serial'?'ESP32 conectado (USB)':kind==='wifi'?'ESP32 conectado (WiFi)':kind==='demo'?'Modo demo':'Sin conexión';
+  }
+
+  // ---- ingreso de una muestra ----
+  function ingest(s){
+    // s: {t, apps1_pct, apps2_pct, apps1_raw, apps2_raw, fault, fault_ms}
+    const now = performance.now();
+    if(state.lastT!=null){
+      const dt = now - state.lastT;
+      if(dt>0){ const inst = 1000/dt; state.rateEma = state.rateEma? state.rateEma*0.9+inst*0.1 : inst; }
+    }
+    state.lastT = now;
+
+    const p1 = clamp(s.apps1_pct), p2 = clamp(s.apps2_pct);
+    const delta = Math.abs(p1-p2);
+
+    // regla de persistencia (el ESP32 ya la calcula, pero la reproducimos por si
+    // la fuente no manda fault/fault_ms)
+    let faultMs = s.fault_ms;
+    let confirmed = s.fault;
+    if(faultMs==null || confirmed==null){
+      if(delta>THRESHOLD){
+        if(state.faultStart==null) state.faultStart = now;
+        faultMs = now - state.faultStart;
+        confirmed = faultMs > PERSIST_MS;
+      } else { state.faultStart=null; faultMs=0; confirmed=false; }
+    } else {
+      state.faultStart = confirmed? (state.faultStart??now) : null;
+    }
+    state.faultConfirmed = confirmed;
+
+    // si la muestra trae el estado de override (lo reporta el firmware real), lo reflejamos
+    // en los botones — así si alguien presiona el botón físico, la web se entera igual.
+    if(s.override1!=null) state.override1 = !!s.override1;
+    if(s.override2!=null) state.override2 = !!s.override2;
+    updateOverrideButtons();
+
+    const v1 = (s.apps1_raw!=null) ? (s.apps1_raw/4095)*VREF : (p1/100)*CH1_VMAX;
+    const v2 = (s.apps2_raw!=null) ? (s.apps2_raw/4095)*VREF : CH2_VMIN + (p2/100)*(CH2_VMAX-CH2_VMIN);
+
+    state.hist.push({t:now, p1, p2, v1, v2, delta, faultWin: delta>THRESHOLD});
+    const cutoff = now - WINDOW_S*1000;
+    while(state.hist.length && state.hist[0].t < cutoff) state.hist.shift();
+
+    render(s, p1, p2, delta, faultMs, confirmed);
+  }
+  const clamp = v => Math.max(0, Math.min(100, v||0));
+
+  function updateOverrideButtons(){
+    $('btnOvr1').classList.toggle('active', state.override1);
+    $('btnOvr2').classList.toggle('active', state.override2);
+  }
+
+  function render(s, p1, p2, delta, faultMs, confirmed){
+    $('pct1').textContent = p1.toFixed(1)+'%';
+    $('pct2').textContent = p2.toFixed(1)+'%';
+    $('raw1').textContent = 'raw '+(s.apps1_raw??'—');
+    $('raw2').textContent = 'raw '+(s.apps2_raw??'—');
+    $('bar1').style.width = p1+'%';
+    $('bar2').style.width = p2+'%';
+    $('mDelta').textContent = delta.toFixed(1)+'%';
+    $('mDelta').style.color = delta>THRESHOLD? 'var(--critical)':'var(--ink)';
+    $('mRate').textContent = (state.rateEma?state.rateEma.toFixed(0):'—')+' Hz';
+    $('faultMs').textContent = Math.min(999, Math.round(faultMs||0));
+
+    if(confirmed){
+      banner.className='status-banner fault';
+      statusIcon.innerHTML = ICON_FAULT;
+      $('statusBig').textContent = 'FALLA · MOTOR CORTADO';
+      $('statusSmall').textContent = 'Asimetría implausible sostenida > 100 ms · señal de interrupción activa';
+    } else {
+      banner.className='status-banner ok';
+      statusIcon.innerHTML = ICON_OK;
+      if((faultMs||0)>0){
+        $('statusBig').textContent = 'ADVERTENCIA';
+        $('statusSmall').textContent = 'Desacuerdo detectado · esperando confirmación de persistencia';
+      } else {
+        $('statusBig').textContent = 'SISTEMA OK';
+        $('statusSmall').textContent = 'Ambos canales coherentes · motor habilitado';
+      }
+    }
+    drawChart();
+    drawVoltageChart();
+  }
+
+  // ---- gráfica canvas ----
+  const cv = $('chart'), ctx = cv.getContext('2d');
+  function fit(){ const r=cv.getBoundingClientRect(); const dpr=devicePixelRatio||1;
+    cv.width=r.width*dpr; cv.height=260*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+  addEventListener('resize', ()=>{fit(); drawChart();});
+  function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+  function drawChart(){
+    const W=cv.getBoundingClientRect().width, H=260;
+    ctx.clearRect(0,0,W,H);
+    const padL=38, padR=12, padT=12, padB=20;
+    const x0=padL, x1=W-padR, y0=padT, y1=H-padB;
+    // grid
+    ctx.strokeStyle=css('--grid'); ctx.lineWidth=1; ctx.fillStyle=css('--muted');
+    ctx.font='11px system-ui'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    for(let v=0; v<=100; v+=25){
+      const y=y1-(v/100)*(y1-y0);
+      ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+      ctx.fillText(v+'%', x0-6, y);
+    }
+    if(state.hist.length<2) return;
+    const t1=performance.now(), t0=t1-WINDOW_S*1000;
+    const X=t=>x0+((t-t0)/(WINDOW_S*1000))*(x1-x0);
+    const Y=v=>y1-(v/100)*(y1-y0);
+
+    // ventanas de falla (bandas rojas)
+    ctx.fillStyle='rgba(208,59,59,.16)';
+    let inWin=false, wx=0;
+    for(const h of state.hist){
+      if(h.faultWin && !inWin){ inWin=true; wx=X(h.t); }
+      else if(!h.faultWin && inWin){ inWin=false; ctx.fillRect(wx,y0,X(h.t)-wx,y1-y0); }
+    }
+    if(inWin) ctx.fillRect(wx,y0,X(t1)-wx,y1-y0);
+
+    const line=(key,color)=>{
+      ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+      state.hist.forEach((h,i)=>{ const x=X(h.t),y=Y(h[key]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+      ctx.stroke();
+    };
+    line('p2', css('--ch2'));
+    line('p1', css('--ch1'));
+  }
+
+  // ---- gráfica de voltaje real (asimetría eléctrica) ----
+  const cv2 = $('voltChart'), ctx2 = cv2.getContext('2d');
+  function fit2(){ const r=cv2.getBoundingClientRect(); const dpr=devicePixelRatio||1;
+    cv2.width=r.width*dpr; cv2.height=260*dpr; ctx2.setTransform(dpr,0,0,dpr,0,0); }
+  addEventListener('resize', ()=>{fit2(); drawVoltageChart();});
+
+  function drawVoltageChart(){
+    const W=cv2.getBoundingClientRect().width, H=260;
+    ctx2.clearRect(0,0,W,H);
+    const padL=38, padR=12, padT=12, padB=20;
+    const x0=padL, x1=W-padR, y0=padT, y1=H-padB;
+    const VMAX=3.5;
+    const Y=v=>y1-(v/VMAX)*(y1-y0);
+
+    // grid + eje en volts
+    ctx2.strokeStyle=css('--grid'); ctx2.lineWidth=1; ctx2.fillStyle=css('--muted');
+    ctx2.font='11px system-ui'; ctx2.textAlign='right'; ctx2.textBaseline='middle';
+    for(let v=0; v<=VMAX+0.01; v+=0.5){
+      const y=Y(v);
+      ctx2.beginPath(); ctx2.moveTo(x0,y); ctx2.lineTo(x1,y); ctx2.stroke();
+      ctx2.fillText(v.toFixed(1)+'V', x0-6, y);
+    }
+
+    // bandas de rango esperado por canal (asimetria visible)
+    ctx2.fillStyle = 'rgba(57,135,229,.10)';
+    ctx2.fillRect(x0, Y(CH1_VMAX), x1-x0, Y(CH1_VMIN)-Y(CH1_VMAX));
+    ctx2.fillStyle = 'rgba(144,133,233,.16)';
+    ctx2.fillRect(x0, Y(CH2_VMAX), x1-x0, Y(CH2_VMIN)-Y(CH2_VMAX));
+
+    if(state.hist.length<2){ return; }
+    const t1=performance.now(), t0=t1-WINDOW_S*1000;
+    const X=t=>x0+((t-t0)/(WINDOW_S*1000))*(x1-x0);
+
+    const lineWithDots=(key,color)=>{
+      ctx2.strokeStyle=color; ctx2.lineWidth=2; ctx2.beginPath();
+      state.hist.forEach((h,i)=>{ const x=X(h.t),y=Y(h[key]); i?ctx2.lineTo(x,y):ctx2.moveTo(x,y); });
+      ctx2.stroke();
+      // puntos cada ~250ms para que se vea como la referencia (línea + marcadores)
+      ctx2.fillStyle=color;
+      let lastDot=-Infinity;
+      for(const h of state.hist){
+        if(h.t-lastDot>=250){
+          const x=X(h.t), y=Y(h[key]);
+          ctx2.beginPath(); ctx2.arc(x,y,3.5,0,7); ctx2.fill();
+          lastDot=h.t;
+        }
+      }
+    };
+    lineWithDots('v2', css('--ch2'));
+    lineWithDots('v1', css('--ch1'));
+  }
+
+  // ---- fuente: Web Serial ----
+  let port=null, reader=null, keepReading=false, writer=null;
+  async function connectSerial(){
+    if(!('serial' in navigator)){ alert('Este navegador no soporta Web Serial. Usa Chrome/Edge de escritorio, o el Modo demo.'); return; }
+    try{
+      port = await navigator.serial.requestPort();
+      await port.open({baudRate:115200});
+      stopDemo(); disconnectWifi();
+      state.source='serial'; setConn('serial');
+      const enc = new TextEncoderStream();
+      enc.readable.pipeTo(port.writable).catch(()=>{});
+      writer = enc.writable.getWriter();
+      keepReading=true; readLoop();
+    }catch(e){ console.warn(e); }
+  }
+  async function readLoop(){
+    const dec=new TextDecoderStream();
+    port.readable.pipeTo(dec.writable).catch(()=>{});
+    reader=dec.readable.getReader();
+    let buf='';
+    while(keepReading){
+      let res; try{ res=await reader.read(); }catch(e){ break; }
+      if(res.done) break;
+      buf+=res.value;
+      let nl;
+      while((nl=buf.indexOf('\n'))>=0){
+        const line=buf.slice(0,nl).trim(); buf=buf.slice(nl+1);
+        if(!line) continue;
+        try{ ingest(JSON.parse(line)); }catch(_){/* línea parcial/ruido */}
+      }
+    }
+  }
+  async function disconnectSerial(){
+    keepReading=false;
+    try{ await writer?.close(); }catch(_){}
+    try{ await reader?.cancel(); }catch(_){}
+    try{ await port?.close(); }catch(_){}
+    port=null; reader=null; writer=null;
+  }
+
+  // ---- fuente: WiFi (WebSocket) ----
+  let ws=null;
+  function connectWifi(){
+    const addr = prompt('Dirección WebSocket del ESP32:', 'ws://esp32-apps.local:81');
+    if(!addr) return;
+    stopDemo(); disconnectSerial(); disconnectWifi();
+    try{
+      ws = new WebSocket(addr);
+      ws.onopen = () => { state.source='wifi'; setConn('wifi'); };
+      ws.onmessage = (e) => { try{ ingest(JSON.parse(e.data)); }catch(_){/* línea parcial/ruido */} };
+      ws.onerror = () => { console.warn('WebSocket error al conectar a', addr); };
+      ws.onclose = () => { if(state.source==='wifi'){ state.source=null; setConn(null); ws=null; } };
+    }catch(e){
+      alert('No se pudo conectar: '+e.message);
+    }
+  }
+  function disconnectWifi(){
+    if(ws){ try{ ws.onclose=null; ws.close(); }catch(_){} ws=null; }
+  }
+
+  // ---- comandos de override (botones "Forzar falla") ----
+  function setOverride(channel, on){
+    const cmd = `OVR${channel}:${on?1:0}`;
+    if(state.source==='serial' && writer){
+      writer.write(cmd+'\n');
+      // optimista: refleja de inmediato, la próxima muestra del ESP32 lo confirma/corrige
+      if(channel===1) state.override1=on; else state.override2=on;
+      updateOverrideButtons();
+    } else if(state.source==='wifi' && ws && ws.readyState===WebSocket.OPEN){
+      ws.send(cmd);
+      if(channel===1) state.override1=on; else state.override2=on;
+      updateOverrideButtons();
+    } else {
+      // modo demo (o sin conexión): no hay firmware real, la web es la única fuente de verdad
+      if(channel===1) state.override1=on; else state.override2=on;
+      updateOverrideButtons();
+    }
+  }
+
+  // ---- fuente: demo ----
+  let demoTimer=null, demoT=0;
+  function startDemo(){
+    disconnectSerial(); disconnectWifi();
+    state.source='demo'; setConn('demo');
+    demoT=0;
+    clearInterval(demoTimer);
+    demoTimer=setInterval(()=>{
+      demoT+=0.02;
+      // pedal: onda suave 0..100
+      const pedal = 50 + 45*Math.sin(demoT*0.9) + 5*Math.sin(demoT*5);
+      const base = clamp(pedal);
+      // APPS1 y APPS2 normalmente coherentes (con rangos asimétricos ya normalizados)
+      let p1 = base + (Math.random()-0.5)*1.5;
+      let p2 = base + (Math.random()-0.5)*1.5;
+      // "Forzar falla": mismo efecto que el botón físico/comando serial en el ESP32 real
+      if(state.override1) p1 = 0;
+      if(state.override2) p2 = 0;
+      const raw1 = Math.round(clamp(p1)/100*4095);
+      const raw2 = Math.round(clamp(p2)/100*4095);
+      ingest({t:Math.round(demoT*1000), apps1_pct:p1, apps2_pct:p2, apps1_raw:raw1, apps2_raw:raw2,
+              fault:null, fault_ms:null, override1:state.override1, override2:state.override2});
+    }, 20);
+  }
+  function stopDemo(){ clearInterval(demoTimer); demoTimer=null; }
+
+  $('btnConnect').addEventListener('click', connectSerial);
+  $('btnWifi').addEventListener('click', connectWifi);
+  $('btnDemo').addEventListener('click', ()=>{ if(state.source==='demo'){ stopDemo(); setConn(null); state.source=null; } else startDemo(); });
+  $('btnOvr1').addEventListener('click', ()=> setOverride(1, !state.override1));
+  $('btnOvr2').addEventListener('click', ()=> setOverride(2, !state.override2));
+
+  fit(); drawChart(); fit2(); drawVoltageChart(); setConn(null);
+  // arranca en demo para que el panel no esté vacío
+  startDemo();
+})();
+</script>
+</body>
+</html>
