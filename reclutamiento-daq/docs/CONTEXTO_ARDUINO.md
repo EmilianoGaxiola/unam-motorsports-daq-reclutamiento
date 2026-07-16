@@ -1,6 +1,6 @@
 # Sistema de Validación de Plausibilidad APPS — documento completo para el chat de Arduino/ESP32
 
-Copia/pega este documento completo como primer mensaje en el chat de Claude Code que va a llevar firmware + circuito. Es la versión definitiva — reemplaza cualquier versión anterior. Todas las decisiones de diseño ya están tomadas para poder construir todo hoy mismo; solo queda un punto realmente pendiente de la sesión de dudas de mañana (al final del documento).
+> **Nota:** este documento es el registro histórico de las instrucciones enviadas al chat que armó el firmware/circuito. **El firmware ya está terminado** en [`apps-system/firmware/MotorSports.ino`](../../apps-system/firmware/MotorSports.ino) y difiere en varios detalles de lo planeado aquí originalmente (servo en vez de motor+relevador, sin botones físicos, ambos potenciómetros a 5V con resistencia en serie en vez de un divisor de dos resistencias). Para el diseño **real y final**, ver [`EXPLICACION_RETO1.md`](EXPLICACION_RETO1.md) — ese documento sí está sincronizado con el código que corre de verdad. Este archivo se conserva solo como contexto de cómo se llegó ahí.
 
 ---
 
