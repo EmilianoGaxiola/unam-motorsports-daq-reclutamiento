@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reto 2 · Telemetría — UNAM Motorsports DAQ</title>
+<style>
+  :root{
+    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#222220;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --lime:#c6f000; --lime-dim:#9bbd00;
+    --border:rgba(255,255,255,.10);
+    --grid:#2c2c2a; --axis:#383835;
+    --speed:#3987e5; --throttle:#199e70; --brake:#e34948;
+    --ax:#eda100; --ay:#9085e9; --g:#c6f000;
+    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--plane); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; min-height:100vh}
+  a{color:var(--lime)}
+  .topbar{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:16px 22px; border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,var(--surface-2),var(--surface)); position:sticky; top:0; z-index:5;
+  }
+  .back{font-size:13px; text-decoration:none; color:var(--muted)}
+  .back:hover{color:var(--ink-2)}
+  .title{font-weight:800; font-size:17px; letter-spacing:-.01em}
+  .title small{display:block; font-weight:500; color:var(--muted); letter-spacing:.16em; text-transform:uppercase; font-size:10px}
+  .spacer{flex:1}
+  .status-pill{font-size:12px; color:var(--muted)}
+
+  main{max-width:1240px; margin:0 auto; padding:20px; display:grid; gap:16px}
+  .panel{background:linear-gradient(180deg,var(--surface-2),var(--surface)); border:1px solid var(--border); border-radius:16px; padding:16px 18px}
+  .panel h3{margin:0 0 12px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700}
+
+  /* transport */
+  .transport{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  button.act{font-family:inherit; font-weight:700; font-size:13px; cursor:pointer; border-radius:9px; padding:9px 15px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink)}
+  button.act:hover{border-color:rgba(198,240,0,.5)}
+  button.primary{background:var(--lime); color:#0d0d0d; border-color:var(--lime); min-width:104px}
+  .seek{flex:1; min-width:200px; display:flex; align-items:center; gap:12px}
+  input[type=range]{width:100%; accent-color:var(--lime)}
+  .clock{font-variant-numeric:tabular-nums; font-weight:700; font-size:15px; min-width:120px; text-align:right}
+  .speeds{display:flex; gap:6px}
+  .speeds button{padding:6px 10px; font-size:12px; border-radius:7px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink-2); cursor:pointer; font-family:inherit}
+  .speeds button.on{background:var(--lime); color:#0d0d0d; border-color:var(--lime); font-weight:700}
+
+  /* critical indicator */
+  .crit{
+    display:flex; align-items:center; gap:14px; border-radius:14px; padding:14px 18px;
+    border:1px solid var(--border); background:#141413; transition:.2s;
+  }
+  .crit.active{background:linear-gradient(180deg,rgba(208,59,59,.2),rgba(208,59,59,.05)); border-color:rgba(208,59,59,.6)}
+  .crit .ico{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#222; flex:none}
+  .crit.active .ico{background:rgba(208,59,59,.28); animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}
+  .crit .ico svg{width:24px;height:24px}
+  .crit .t{font-weight:800; font-size:16px}
+  .crit .s{font-size:13px; color:var(--ink-2)}
+
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px}
+  .tile{background:#141413; border:1px solid var(--border); border-radius:12px; padding:14px 16px}
+  .tile .l{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em}
+  .tile .v{font-size:24px; font-weight:800; margin-top:5px; font-variant-numeric:tabular-nums}
+  .tile .u{font-size:13px; color:var(--muted); font-weight:600}
+
+  .cols{display:grid; grid-template-columns:2fr 1fr; gap:16px}
+  @media(max-width:880px){.cols{grid-template-columns:1fr}}
+  canvas{width:100%; display:block}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; font-size:12px; color:var(--ink-2)}
+  .legend span{display:flex; align-items:center; gap:6px}
+  .sw{width:12px;height:12px;border-radius:3px}
+
+  /* anomaly timeline */
+  .timeline{position:relative; height:34px; border-radius:8px; background:#141413; border:1px solid var(--border); overflow:hidden; cursor:pointer}
+  .timeline .ev{position:absolute; top:0; bottom:0}
+  .timeline .ev.plaus{background:rgba(208,59,59,.55)}
+  .timeline .ev.sat{background:rgba(250,178,25,.5)}
+  .timeline .ev.drop{background:rgba(144,133,233,.6)}
+  .timeline .ph{position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--lime); box-shadow:0 0 8px var(--lime)}
+  .tl-legend{display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; font-size:12px; color:var(--ink-2)}
+
+  .note{font-size:12px; color:var(--muted); line-height:1.6}
+  .note code{background:#141413; padding:2px 6px; border-radius:5px; color:var(--ink-2); font-size:11px}
+  .loading{padding:40px; text-align:center; color:var(--muted)}
+  .filechip{font-size:12px; color:var(--muted)}
+  .filechip input{display:none}
+  .filechip label{color:var(--lime); cursor:pointer; text-decoration:underline}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../">◄ Inicio</a>
+    <div class="title">Telemetría &amp; Detección de Anomalías<small>Reto 02 · 100 Hz</small></div>
+    <div class="spacer"></div>
+    <div class="status-pill" id="statusPill">Cargando datos…</div>
+  </div>
+
+  <main>
+    <div class="panel" id="loadingPanel"><div class="loading">Cargando <code>data.csv</code>… (30&nbsp;000 muestras)</div></div>
+
+    <div id="app" style="display:none; gap:16px; grid-template-columns:1fr" >
+      <div class="crit" id="crit">
+        <div class="ico" id="critIco"></div>
+        <div>
+          <div class="t" id="critT">Sin anomalía en el instante actual</div>
+          <div class="s" id="critS">Recorre el registro para localizar los eventos detectados</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="transport">
+          <button id="btnPlay" class="act primary">▶ Reproducir</button>
+          <div class="seek">
+            <input id="seek" type="range" min="0" max="29999" value="0" step="1">
+          </div>
+          <div class="clock"><span id="clock">0.00</span> / <span id="dur">300.00</span> s</div>
+          <div class="speeds" id="speeds">
+            <button data-x="1">1×</button>
+            <button data-x="4" class="on">4×</button>
+            <button data-x="10">10×</button>
+            <button data-x="25">25×</button>
+            <button data-x="100">100×</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile"><div class="l">Velocidad</div><div class="v"><span id="tSpeed">0</span> <span class="u">km/h</span></div></div>
+        <div class="tile"><div class="l">|G| actual (filtr.)</div><div class="v"><span id="tG">0.00</span> <span class="u">g</span></div></div>
+        <div class="tile"><div class="l">|G| máx registro</div><div class="v"><span id="tGmax">0.00</span> <span class="u">g</span></div></div>
+        <div class="tile"><div class="l">Eventos plausib.</div><div class="v" id="tPlaus" style="color:var(--critical)">0</div></div>
+        <div class="tile"><div class="l">Segmentos satur.</div><div class="v" id="tSat" style="color:var(--warning)">0</div></div>
+      </div>
+
+      <div class="panel">
+        <h3>Línea de tiempo de anomalías</h3>
+        <div class="timeline" id="timeline"><div class="ph" id="ph"></div></div>
+        <div class="tl-legend">
+          <span><span class="sw" style="background:var(--critical)"></span>Plausibilidad (freno+acelerador)</span>
+          <span><span class="sw" style="background:var(--warning)"></span>Saturación de sensor</span>
+          <span><span class="sw" style="background:var(--ay)"></span>Pérdida de señal</span>
+        </div>
+      </div>
+
+      <div class="cols">
+        <div class="panel">
+          <h3>Canales en el tiempo (ventana móvil 12 s)</h3>
+          <canvas id="chSpeed" height="90"></canvas>
+          <div class="legend"><span><span class="sw" style="background:var(--speed)"></span>Velocidad km/h</span></div>
+          <div style="height:10px"></div>
+          <canvas id="chPedals" height="110"></canvas>
+          <div class="legend">
+            <span><span class="sw" style="background:var(--throttle)"></span>Acelerador %</span>
+            <span><span class="sw" style="background:var(--brake)"></span>Freno %</span>
+          </div>
+          <div style="height:10px"></div>
+          <canvas id="chAccel" height="110"></canvas>
+          <div class="legend">
+            <span><span class="sw" style="background:var(--ax)"></span>accel_x filtr.</span>
+            <span><span class="sw" style="background:var(--ay)"></span>accel_y filtr.</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Diagrama G-G</h3>
+          <canvas id="chGG" height="300"></canvas>
+          <p class="note" style="margin-top:10px">Huella de fricción sobre la señal
+            <b>filtrada</b> (Butterworth orden 4, corte 10&nbsp;Hz, fase cero). El punto
+            <span style="color:var(--lime)">lima</span> es el instante actual.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Criterios de detección (provisionales)</h3>
+        <p class="note">
+          <b>Plausibilidad:</b> <code>freno&gt;50% &amp; acelerador&gt;50%</code> sostenido &gt;100&nbsp;ms.
+          &nbsp;·&nbsp; <b>Saturación:</b> <code>|accel|&gt;0.98 g</code> sostenido &gt;100&nbsp;ms.
+          &nbsp;·&nbsp; <b>Pérdida de señal:</b> varianza colapsada en ventana móvil.
+          Los umbrales están pendientes de confirmar en la sesión del 14 de julio
+          (ver <code>docs/PREGUNTAS_MANANA.md</code>); cámbialos en un solo lugar del código.
+        </p>
+      </div>
+    </div>
+  </main>
+
+<script>
+(() => {
+  "use strict";
+
+  // ===== parámetros (deben coincidir con el notebook de Python) =====
+  const FS = 100, DT = 0.01;
+  const PERSIST_SAMPLES = 10;         // 100 ms
+  const PLAUS_TH = 50;                // % en ambos pedales  (PROVISIONAL)
+  const SAT_TH = 0.98;               // g                    (PROVISIONAL)
+  const WINDOW_S = 12;
+
+  // Butterworth orden 4, 10Hz @ 100Hz (calculado con scipy, ver reclutamiento-daq)
+  const B = [4.8243433577e-03,1.9297373431e-02,2.8946060146e-02,1.9297373431e-02,4.8243433577e-03];
+  const A = [1.0,-2.3695130072e+00,2.3139884144e+00,-1.0546654059e+00,1.8737949237e-01];
+
+  const $ = id => document.getElementById(id);
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+  // ===== filtro IIR + filtfilt (fase cero) =====
+  function lfilter(b,a,x){
+    const y=new Float64Array(x.length); const n=b.length;
+    for(let i=0;i<x.length;i++){
+      let acc=0;
+      for(let j=0;j<n;j++) if(i-j>=0) acc+=b[j]*x[i-j];
+      for(let j=1;j<a.length;j++) if(i-j>=0) acc-=a[j]*y[i-j];
+      y[i]=acc/a[0];
+    }
+    return y;
+  }
+  function filtfilt(b,a,x){
+    // pasada hacia adelante, invertir, pasada de nuevo, invertir (fase cero)
+    let y=lfilter(b,a,x);
+    y.reverse();
+    y=lfilter(b,a,y);
+    y.reverse();
+    return y;
+  }
+
+  // ===== detección genérica con regla de persistencia =====
+  function persistentSegments(cond, minSamples){
+    const segs=[]; let active=false, start=0;
+    for(let i=0;i<cond.length;i++){
+      if(cond[i] && !active){active=true; start=i;}
+      else if(!cond[i] && active){active=false; if(i-start>=minSamples) segs.push([start,i-1]);}
+    }
+    if(active && cond.length-start>=minSamples) segs.push([start,cond.length-1]);
+    return segs;
+  }
+
+  // ===== estado =====
+  let D=null;       // datos parseados y derivados
+  let idx=0, playing=false, speed=4, lastFrame=0;
+
+  // ===== carga CSV =====
+  function parseCSV(text){
+    const lines=text.split('\n');
+    const header=lines[0].split(',');
+    const col={}; header.forEach((h,i)=>col[h.trim()]=i);
+    const n=lines.length-1;
+    const t=new Float64Array(n), speed=new Float64Array(n), ax=new Float64Array(n),
+          ay=new Float64Array(n), brake=new Float64Array(n), thr=new Float64Array(n);
+    let m=0;
+    for(let i=1;i<lines.length;i++){
+      const L=lines[i]; if(!L) continue;
+      const p=L.split(',');
+      t[m]=+p[col.Timestamp]; speed[m]=+p[col.speed_kmph];
+      ax[m]=+p[col.accel_x]; ay[m]=+p[col.accel_y];
+      brake[m]=+p[col.brake_pressure]; thr[m]=+p[col.throttle];
+      m++;
+    }
+    return {n:m,t,speed,ax,ay,brake,thr};
+  }
+
+  function derive(raw){
+    const axf=filtfilt(B,A,raw.ax), ayf=filtfilt(B,A,raw.ay);
+    const g=new Float64Array(raw.n); let gmax=0;
+    for(let i=0;i<raw.n;i++){ g[i]=Math.hypot(axf[i],ayf[i]); if(g[i]>gmax)gmax=g[i]; }
+    // detección
+    const plausCond=new Uint8Array(raw.n), satCond=new Uint8Array(raw.n);
+    for(let i=0;i<raw.n;i++){
+      plausCond[i]=(raw.brake[i]>PLAUS_TH && raw.thr[i]>PLAUS_TH)?1:0;
+      satCond[i]=(Math.abs(raw.ax[i])>SAT_TH || Math.abs(raw.ay[i])>SAT_TH)?1:0;
+    }
+    // pérdida de señal: std colapsada en ventana de 20
+    const dropCond=new Uint8Array(raw.n); const w=20;
+    for(let i=0;i<raw.n-w;i++){
+      let mx=0,my=0; for(let j=0;j<w;j++){mx+=raw.ax[i+j];my+=raw.ay[i+j];} mx/=w;my/=w;
+      let vx=0,vy=0; for(let j=0;j<w;j++){vx+=(raw.ax[i+j]-mx)**2;vy+=(raw.ay[i+j]-my)**2;}
+      if(Math.sqrt(vx/w)<1e-3 && Math.sqrt(vy/w)<1e-3){ for(let j=0;j<w;j++) dropCond[i+j]=1; }
+    }
+    const plaus=persistentSegments(plausCond,PERSIST_SAMPLES);
+    const sat=persistentSegments(satCond,PERSIST_SAMPLES);
+    const drop=persistentSegments(dropCond,PERSIST_SAMPLES);
+    return {...raw,axf,ayf,g,gmax,plaus,sat,drop,plausCond};
+  }
+
+  // ===== render =====
+  const canvases={};
+  ['chSpeed','chPedals','chAccel','chGG'].forEach(id=>{canvases[id]=$(id);});
+  function fitAll(){
+    const dpr=devicePixelRatio||1;
+    for(const id in canvases){
+      const c=canvases[id], r=c.getBoundingClientRect(), h=+c.getAttribute('height');
+      c.width=r.width*dpr; c.height=h*dpr; c.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+    }
+  }
+  addEventListener('resize',()=>{fitAll(); draw();});
+
+  function lineChart(id, series, yMin, yMax){
+    const c=canvases[id], ctx=c.getContext('2d');
+    const W=c.getBoundingClientRect().width, H=+c.getAttribute('height');
+    ctx.clearRect(0,0,W,H);
+    const padL=40,padR=8,padT=8,padB=16, x0=padL,x1=W-padR,y0=padT,y1=H-padB;
+    ctx.strokeStyle=css('--grid'); ctx.lineWidth=1; ctx.fillStyle=css('--muted');
+    ctx.font='10px system-ui'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    for(let k=0;k<=2;k++){ const v=yMin+(yMax-yMin)*k/2; const y=y1-((v-yMin)/(yMax-yMin))*(y1-y0);
+      ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();
+      ctx.fillText(v.toFixed(v>=10?0:1), x0-5, y); }
+    const i1=idx, i0=Math.max(0,idx-WINDOW_S*FS);
+    const span=WINDOW_S*FS;
+    const X=i=>x0+((i-(i1-span))/span)*(x1-x0);
+    const Y=v=>y1-((v-yMin)/(yMax-yMin))*(y1-y0);
+    // banda de anomalías (plausibilidad) dentro de la ventana
+    ctx.fillStyle='rgba(208,59,59,.16)';
+    for(const [s,e] of D.plaus){ if(e<i0||s>i1) continue;
+      ctx.fillRect(X(Math.max(s,i0)),y0,X(Math.min(e,i1))-X(Math.max(s,i0)),y1-y0); }
+    for(const {arr,color} of series){
+      ctx.strokeStyle=color; ctx.lineWidth=1.8; ctx.beginPath();
+      let started=false;
+      for(let i=i0;i<=i1;i++){ const x=X(i),y=Y(arr[i]); started?ctx.lineTo(x,y):(ctx.moveTo(x,y),started=true); }
+      ctx.stroke();
+    }
+    // playhead
+    ctx.strokeStyle=css('--lime'); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(X(i1),y0); ctx.lineTo(X(i1),y1); ctx.stroke();
+  }
+
+  function drawGG(){
+    const c=canvases.chGG, ctx=c.getContext('2d');
+    const W=c.getBoundingClientRect().width, H=+c.getAttribute('height');
+    ctx.clearRect(0,0,W,H);
+    const cx=W/2, cy=H/2, R=Math.min(W,H)/2-24;
+    const lim=Math.max(1.6, D.gmax*1.05);
+    const S=v=>v/lim*R;
+    // grid radial
+    ctx.strokeStyle=css('--grid'); ctx.fillStyle=css('--muted'); ctx.font='10px system-ui';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    for(let g=0.5; g<=lim; g+=0.5){ ctx.beginPath(); ctx.arc(cx,cy,S(g),0,7); ctx.stroke();
+      ctx.fillText(g.toFixed(1)+'g', cx+S(g), cy-6); }
+    ctx.strokeStyle=css('--axis'); ctx.beginPath();
+    ctx.moveTo(cx-R,cy);ctx.lineTo(cx+R,cy);ctx.moveTo(cx,cy-R);ctx.lineTo(cx,cy+R);ctx.stroke();
+    // nube de puntos hasta idx (huella acumulada)
+    ctx.fillStyle='rgba(57,135,229,.28)';
+    const step=Math.max(1,Math.floor(idx/4000));
+    for(let i=0;i<=idx;i+=step){ ctx.fillRect(cx+S(D.axf[i])-1, cy-S(D.ayf[i])-1, 2,2); }
+    // punto actual
+    ctx.fillStyle=css('--lime');
+    ctx.beginPath(); ctx.arc(cx+S(D.axf[idx]), cy-S(D.ayf[idx]), 5, 0, 7); ctx.fill();
+  }
+
+  function inAnySeg(segs,i){ for(const [s,e] of segs) if(i>=s&&i<=e) return true; return false; }
+
+  function draw(){
+    if(!D) return;
+    lineChart('chSpeed', [{arr:D.speed,color:css('--speed')}], 0, 130);
+    lineChart('chPedals', [{arr:D.thr,color:css('--throttle')},{arr:D.brake,color:css('--brake')}], 0, 100);
+    lineChart('chAccel', [{arr:D.axf,color:css('--ax')},{arr:D.ayf,color:css('--ay')}], -1.6, 1.6);
+    drawGG();
+    // tiles + reloj
+    $('tSpeed').textContent=D.speed[idx].toFixed(0);
+    $('tG').textContent=D.g[idx].toFixed(2);
+    $('clock').textContent=D.t[idx].toFixed(2);
+    $('seek').value=idx;
+    $('ph').style.left=(idx/(D.n-1)*100)+'%';
+    // indicador crítico
+    const inP=inAnySeg(D.plaus,idx), inS=inAnySeg(D.sat,idx), inD=inAnySeg(D.drop,idx);
+    const crit=$('crit');
+    if(inP){ crit.classList.add('active');
+      $('critIco').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#d03b3b" stroke-width="3"><path d="M12 8v5M12 17h.01"/><path d="M10.3 3.3 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0Z"/></svg>';
+      $('critT').textContent='VIOLACIÓN DE PLAUSIBILIDAD'; $('critT').style.color='var(--critical)';
+      $('critS').textContent=`Freno y acelerador simultáneos · t=${D.t[idx].toFixed(2)} s`;
+    } else {
+      crit.classList.remove('active'); $('critT').style.color='';
+      if(inS){ $('critIco').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#fab219" stroke-width="3"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>';
+        $('critT').textContent='Saturación de sensor'; $('critS').textContent=`|accel| en el límite · t=${D.t[idx].toFixed(2)} s`; }
+      else if(inD){ $('critIco').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#9085e9" stroke-width="3"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg>';
+        $('critT').textContent='Posible pérdida de señal'; $('critS').textContent=`Varianza colapsada · t=${D.t[idx].toFixed(2)} s`; }
+      else { $('critIco').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#0ca30c" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>';
+        $('critT').textContent='Sin anomalía en el instante actual'; $('critS').textContent='Recorre el registro para localizar los eventos detectados'; }
+    }
+  }
+
+  // ===== playback loop =====
+  function tick(ts){
+    if(playing && D){
+      if(!lastFrame) lastFrame=ts;
+      const dtms=ts-lastFrame; lastFrame=ts;
+      idx += Math.round((dtms/1000)*FS*speed);
+      if(idx>=D.n-1){ idx=D.n-1; setPlaying(false); }
+      draw();
+    } else lastFrame=ts;
+    requestAnimationFrame(tick);
+  }
+  function setPlaying(p){ playing=p; $('btnPlay').textContent=p?'❚❚ Pausa':'▶ Reproducir'; if(p)lastFrame=0; }
+
+  // ===== eventos UI =====
+  $('btnPlay').addEventListener('click',()=>setPlaying(!playing));
+  $('seek').addEventListener('input',e=>{ idx=+e.target.value; draw(); });
+  $('speeds').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
+    speed=+b.dataset.x; [...$('speeds').children].forEach(x=>x.classList.toggle('on',x===b)); });
+  $('timeline').addEventListener('click',e=>{ const r=e.currentTarget.getBoundingClientRect();
+    idx=Math.round((e.clientX-r.left)/r.width*(D.n-1)); draw(); });
+
+  function paintTimeline(){
+    const tl=$('timeline');
+    const add=(segs,cls)=>segs.forEach(([s,e])=>{ const d=document.createElement('div');
+      d.className='ev '+cls; d.style.left=(s/(D.n-1)*100)+'%'; d.style.width=Math.max(0.4,(e-s)/(D.n-1)*100)+'%';
+      tl.appendChild(d); });
+    add(D.drop,'drop'); add(D.sat,'sat'); add(D.plaus,'plaus');
+  }
+
+  // ===== init =====
+  function boot(raw){
+    D=derive(raw);
+    $('loadingPanel').style.display='none';
+    $('app').style.display='grid';
+    $('statusPill').textContent=`${D.n.toLocaleString()} muestras · ${D.t[D.n-1].toFixed(0)} s`;
+    $('dur').textContent=D.t[D.n-1].toFixed(2);
+    $('seek').max=D.n-1;
+    $('tGmax').textContent=D.gmax.toFixed(2);
+    $('tPlaus').textContent=D.plaus.length;
+    $('tSat').textContent=D.sat.length;
+    fitAll(); paintTimeline(); draw();
+    requestAnimationFrame(tick);
+  }
+
+  fetch('./data.csv').then(r=>{ if(!r.ok) throw new Error('no data.csv'); return r.text(); })
+    .then(txt=>boot(parseCSV(txt)))
+    .catch(err=>{
+      $('loadingPanel').innerHTML='<div class="loading">No se pudo cargar <code>data.csv</code> automáticamente.<br><br>'
+        +'<span class="filechip"><label for="fileIn">Selecciona el archivo manualmente</label>'
+        +'<input id="fileIn" type="file" accept=".csv"></span></div>';
+      $('fileIn').addEventListener('change',ev=>{ const f=ev.target.files[0]; if(!f)return;
+        const rd=new FileReader(); rd.onload=()=>boot(parseCSV(rd.result)); rd.readAsText(f); });
+    });
+})();
+</script>
+</body>
+</html>
